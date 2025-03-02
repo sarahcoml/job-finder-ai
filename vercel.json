@@ -1,0 +1,8 @@
+{
+    "functions": {
+      "api/jobs": {
+        "runtime": "edge"
+      }
+    }
+  }
+  

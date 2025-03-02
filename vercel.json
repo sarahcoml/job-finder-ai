@@ -4,11 +4,5 @@
     "api/jobs": {
       "runtime": "nodejs18.x"
     }
-  },
-  "builds": [
-    {
-      "src": "api/jobs.ts",
-      "use": "@vercel/node"
-    }
-  ]
+  }
 }

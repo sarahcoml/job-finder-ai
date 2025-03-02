@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./styles.css";
+import "bootstrap/dist/css/bootstrap.min.css";
+
+function Layout({ children }: { children: React.ReactNode }) {
+  return <div className="container">{children}</div>;
+}
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

@@ -10,6 +10,7 @@
     "build:css": "./build-css.sh"
   },
   "dependencies": {
+    "@swc/helpers": "^0.5.15",
     "bootstrap": "^5.3.3",
     "next": "15.2.0",
     "openai": "^4.86.1",

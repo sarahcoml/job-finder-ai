@@ -32,7 +32,7 @@ export default function Home() {
 
   return (
     <div className="container mt-4">
-      <h1>Carly's Job Finder</h1>
+      <h1 className="text-center">AI Job Finder - Fortune 500</h1>
       <div className="input-group my-3">
         <input
           type="text"
@@ -41,7 +41,7 @@ export default function Home() {
           value={jobTitle}
           onChange={(e) => setJobTitle(e.target.value)}
         />
-        <button onClick={searchJobs} className="btn btn-primary" disabled={loading}>
+        <button onClick={searchJobs} className="btn btn-primary">
           {loading ? "Searching..." : "Search Jobs"}
         </button>
       </div>
@@ -57,6 +57,7 @@ export default function Home() {
               <span className={`badge ${job.source === "LinkedIn" ? "bg-primary" : "bg-success"}`}>
                 🌐 {job.source}
               </span>
+              <span className="badge bg-warning text-dark me-2">📅 {job.experience} Exp</span>
 
               <br />
               <a href={job.link} target="_blank" className="btn btn-sm btn-outline-primary mt-2">

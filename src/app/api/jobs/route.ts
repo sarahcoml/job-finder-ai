@@ -38,64 +38,90 @@ const JOB_TITLE_SYNONYMS: Record<string, string[]> = {
 };
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  let jobTitle = url.searchParams.get("title")?.toLowerCase();
-
-  if (!jobTitle) {
-    console.log("🚨 Missing job title");
-    return NextResponse.json({ error: "Missing job title" }, { status: 400 });
-  }
-
-  console.log(`🔍 Searching jobs for: ${jobTitle}`);
-
-  // 🔹 Get all related job titles (including synonyms)
-  let relatedJobTitles = [jobTitle];
-  if (JOB_TITLE_SYNONYMS[jobTitle]) {
-    relatedJobTitles.push(...JOB_TITLE_SYNONYMS[jobTitle]);
-  }
-
-  console.log(`📌 Searching for these job titles: ${relatedJobTitles.join(", ")}`);
-
-  const browser = await playwright.chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  let jobs: any[] = [];
-
   try {
-    for (const title of relatedJobTitles) {
-      // 🔹 Scrape LinkedIn
-      const linkedInUrl = `https://www.linkedin.com/jobs/search?keywords=${encodeURIComponent(title)}&location=United%20States`;
-      await page.goto(linkedInUrl, { waitUntil: "domcontentloaded" });
-      await page.waitForTimeout(2000); // Allow extra time for lazy loading
+    console.log("🔍 API Request received");
 
-      console.log(`✅ Scraped LinkedIn for: ${title}`);
+    const url = new URL(req.url);
+    const jobTitle = url.searchParams.get("title");
 
-      const linkedInJobs = await page.evaluate(() => {
-        return Array.from(document.querySelectorAll(".base-card")).map(job => ({
-          title: job.querySelector(".base-search-card__title")?.textContent?.trim() || "Unknown",
-          company: job.querySelector(".base-search-card__subtitle")?.textContent?.trim() || "Unknown",
-          location: job.querySelector(".job-search-card__location")?.textContent?.trim() || "Unknown",
-          link: job.querySelector(".base-card__full-link")?.getAttribute("href") || "#",
-          posted: job.querySelector("time")?.textContent?.trim() || "Unknown",
-          source: "LinkedIn"
-        }));
-      });
-
-      console.log(`🔹 Found ${linkedInJobs.length} LinkedIn jobs for ${title}`);
-      jobs.push(...linkedInJobs);
+    if (!jobTitle) {
+      console.error("🚨 Missing job title in request");
+      return NextResponse.json({ error: "Missing job title" }, { status: 400 });
     }
-  } catch (error) {
-    console.error("🚨 Scraping error:", error);
-    return NextResponse.json({ error: "Scraping error" }, { status: 500 });
-  } finally {
+
+    console.log(`📌 Searching for jobs related to: ${jobTitle}`);
+
+    const browser = await playwright.chromium.launch({ headless: true });
+    const page = await browser.newPage();
+    let jobs: any[] = [];
+
+    // 🔹 Find similar job titles
+    const relatedTitles = JOB_TITLE_SYNONYMS[jobTitle] || [jobTitle];
+
+    for (const title of relatedTitles) {
+      console.log(`🔎 Scraping LinkedIn for: ${title}`);
+      
+      try {
+        // Scrape LinkedIn
+        const linkedInUrl = `https://www.linkedin.com/jobs/search?keywords=${encodeURIComponent(title)}&location=United%20States`;
+        await page.goto(linkedInUrl, { waitUntil: "domcontentloaded" });
+
+        const linkedInJobs = await page.evaluate(() => {
+          return Array.from(document.querySelectorAll(".base-card")).map(job => ({
+            title: job.querySelector(".base-search-card__title")?.textContent?.trim() || "Unknown",
+            company: job.querySelector(".base-search-card__subtitle")?.textContent?.trim() || "Unknown",
+            location: job.querySelector(".job-search-card__location")?.textContent?.trim() || "Unknown",
+            link: job.querySelector(".base-card__full-link")?.getAttribute("href") || "#",
+            posted: job.querySelector("time")?.textContent?.trim() || "Unknown",
+            source: "LinkedIn"
+          }));
+        });
+
+        console.log(`✅ LinkedIn found ${linkedInJobs.length} jobs for: ${title}`);
+        jobs.push(...linkedInJobs);
+
+      } catch (error) {
+        console.error(`❌ Error scraping LinkedIn for ${title}:`, error);
+      }
+
+      try {
+        // Scrape Indeed
+        console.log(`🔎 Scraping Indeed for: ${title}`);
+        const indeedUrl = `https://www.indeed.com/jobs?q=${encodeURIComponent(title)}&l=United+States`;
+        await page.goto(indeedUrl, { waitUntil: "domcontentloaded" });
+
+        const indeedJobs = await page.evaluate(() => {
+          return Array.from(document.querySelectorAll(".job_seen_beacon")).map(job => ({
+            title: job.querySelector("h2.jobTitle span")?.textContent?.trim() || "Unknown",
+            company: job.querySelector(".companyName")?.textContent?.trim() || "Unknown",
+            location: job.querySelector(".companyLocation")?.textContent?.trim() || "Unknown",
+            link: "https://www.indeed.com" + job.querySelector("a")?.getAttribute("href"),
+            posted: job.querySelector(".date")?.textContent?.trim() || "Unknown",
+            source: "Indeed"
+          }));
+        });
+
+        console.log(`✅ Indeed found ${indeedJobs.length} jobs for: ${title}`);
+        jobs.push(...indeedJobs);
+
+      } catch (error) {
+        console.error(`❌ Error scraping Indeed for ${title}:`, error);
+      }
+    }
+
     await browser.close();
+
+    // 🔹 Filter jobs to include only Fortune 500 companies
+    console.log("📌 Filtering jobs for Fortune 500 companies");
+    const filteredJobs = jobs.filter(job =>
+      FORTUNE_500_COMPANIES.some(company => job.company.toLowerCase().includes(company.toLowerCase()))
+    );
+
+    console.log(`✅ Returning ${filteredJobs.length} filtered jobs`);
+    return NextResponse.json(filteredJobs);
+
+  } catch (error) {
+    console.error("🚨 Server Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-
-  // 🔹 Filter jobs to include only Fortune 500 companies
-  const fortune500Jobs = jobs.filter(job => 
-    FORTUNE_500_COMPANIES.some(company => job.company.toLowerCase().includes(company.toLowerCase()))
-  );
-
-  console.log(`✅ Total Fortune 500 Jobs Found: ${fortune500Jobs.length}`);
-
-  return NextResponse.json(fortune500Jobs);
 }

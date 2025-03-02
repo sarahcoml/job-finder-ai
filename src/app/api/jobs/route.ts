@@ -56,7 +56,7 @@ const JOB_TITLE_SYNONYMS: Record<string, string[]> = {
   
     console.log(`📌 Searching for these job titles: ${relatedJobTitles.join(", ")}`);
   
-    const browser = await playwright.chromium.launch({ headless: true });
+    const browser = await playwright.chromium.launch({ headless: false });
     const page = await browser.newPage();
     let jobs: any[] = [];
   

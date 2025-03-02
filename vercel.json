@@ -1,8 +1,8 @@
 {
-    "functions": {
-      "api/jobs": {
-        "runtime": "edge"
-      }
+  "version": 2,
+  "functions": {
+    "api/jobs": {
+      "runtime": "nodejs18.x"
     }
   }
-  
+}

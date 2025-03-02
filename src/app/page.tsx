@@ -32,7 +32,7 @@ export default function Home() {
 
   return (
     <div className="container mt-4">
-      <h1 className="text-center">AI Job Finder - Fortune 500</h1>
+      <h1 className="text-center">Carl's Job Finder</h1>
       <div className="input-group my-3">
         <input
           type="text"

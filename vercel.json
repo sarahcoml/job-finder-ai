@@ -1,8 +1,14 @@
 {
+  "version": 2,
   "functions": {
     "api/jobs": {
-      "runtime": "nodejs18.x",
-      "includeFiles": "node_modules/playwright/**/*"
+      "runtime": "nodejs18.x"
     }
-  }
+  },
+  "builds": [
+    {
+      "src": "api/jobs.ts",
+      "use": "@vercel/node"
+    }
+  ]
 }

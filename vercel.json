@@ -2,7 +2,13 @@
   "version": 2,
   "functions": {
     "api/jobs": {
-      "runtime": "now-php@8.1.0"
+      "runtime": "@vercel/python@4.3.0"
     }
-  }
+  },
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ]
 }

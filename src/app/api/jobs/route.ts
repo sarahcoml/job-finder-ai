@@ -23,36 +23,51 @@ const FORTUNE_500_COMPANIES = [
   "American Electric Power", "Southern Company", "PG&E", "Xcel Energy", "Dominion Energy"
 ];
 
-const JOB_TITLES = {
-  "Software Engineer": ["Software Developer", "Backend Engineer", "Full Stack Developer", "Application Developer"],
-  "Frontend Developer": ["UI Engineer", "Web Developer", "React Developer", "JavaScript Engineer"],
-  "Data Scientist": ["Machine Learning Engineer", "AI Engineer", "Data Analyst", "Big Data Engineer"],
-  "Product Manager": ["Project Manager", "Product Owner", "Business Analyst", "Growth Manager"],
-  "Sales Operations": ["Sales Support Analyst", "Sales Coordinator", "Revenue Operations Analyst", "Business Development Coordinator"],
-  "Sales Support": ["Sales Assistant", "Customer Success Manager", "Account Coordinator", "Inside Sales Representative"],
-  "Marketing": ["Marketing Coordinator", "Brand Manager", "Digital Marketing Specialist", "SEO Specialist"]
+// 🔹 Job Title Synonyms Mapping
+const JOB_TITLE_SYNONYMS: Record<string, string[]> = {
+  "software engineer": ["developer", "software developer", "programmer", "full stack developer", "backend engineer", "frontend developer"],
+  "data scientist": ["machine learning engineer", "data analyst", "AI engineer", "big data engineer", "statistical analyst"],
+  "product manager": ["product owner", "business analyst", "program manager", "product strategist"],
+  "marketing specialist": ["digital marketer", "SEO specialist", "content marketer", "growth hacker"],
+  "cybersecurity analyst": ["security engineer", "information security analyst", "penetration tester", "ethical hacker"],
+  "financial analyst": ["investment analyst", "portfolio analyst", "risk analyst", "economic analyst"],
+  "sales representative": ["business development representative", "account executive", "sales manager"],
+  "human resources": ["HR specialist", "talent acquisition", "recruiter", "HR manager"],
+  "network engineer": ["IT administrator", "systems engineer", "cloud engineer", "infrastructure engineer"],
+  "mechanical engineer": ["manufacturing engineer", "aerospace engineer", "civil engineer", "industrial engineer"]
 };
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const jobTitle = url.searchParams.get("title") as keyof typeof JOB_TITLES;
+  let jobTitle = url.searchParams.get("title")?.toLowerCase();
 
   if (!jobTitle) {
+    console.log("🚨 Missing job title");
     return NextResponse.json({ error: "Missing job title" }, { status: 400 });
   }
+
+  console.log(`🔍 Searching jobs for: ${jobTitle}`);
+
+  // 🔹 Get all related job titles (including synonyms)
+  let relatedJobTitles = [jobTitle];
+  if (JOB_TITLE_SYNONYMS[jobTitle]) {
+    relatedJobTitles.push(...JOB_TITLE_SYNONYMS[jobTitle]);
+  }
+
+  console.log(`📌 Searching for these job titles: ${relatedJobTitles.join(", ")}`);
 
   const browser = await playwright.chromium.launch({ headless: true });
   const page = await browser.newPage();
   let jobs: any[] = [];
 
   try {
-    // 🔹 Find similar job titles
-    const relatedTitles = JOB_TITLES[jobTitle] || [jobTitle as string];
-
-    for (const title of relatedTitles) {
+    for (const title of relatedJobTitles) {
       // 🔹 Scrape LinkedIn
       const linkedInUrl = `https://www.linkedin.com/jobs/search?keywords=${encodeURIComponent(title)}&location=United%20States`;
       await page.goto(linkedInUrl, { waitUntil: "domcontentloaded" });
+      await page.waitForTimeout(2000); // Allow extra time for lazy loading
+
+      console.log(`✅ Scraped LinkedIn for: ${title}`);
 
       const linkedInJobs = await page.evaluate(() => {
         return Array.from(document.querySelectorAll(".base-card")).map(job => ({
@@ -65,35 +80,22 @@ export async function GET(req: Request) {
         }));
       });
 
+      console.log(`🔹 Found ${linkedInJobs.length} LinkedIn jobs for ${title}`);
       jobs.push(...linkedInJobs);
-
-      // 🔹 Scrape Indeed
-      const indeedUrl = `https://www.indeed.com/jobs?q=${encodeURIComponent(title)}&l=United+States`;
-      await page.goto(indeedUrl, { waitUntil: "domcontentloaded" });
-
-      const indeedJobs = await page.evaluate(() => {
-        return Array.from(document.querySelectorAll(".job_seen_beacon")).map(job => ({
-          title: job.querySelector("h2.jobTitle span")?.textContent?.trim() || "Unknown",
-          company: job.querySelector(".companyName")?.textContent?.trim() || "Unknown",
-          location: job.querySelector(".companyLocation")?.textContent?.trim() || "Unknown",
-          link: "https://www.indeed.com" + job.querySelector("a")?.getAttribute("href"),
-          posted: job.querySelector(".date")?.textContent?.trim() || "Unknown",
-          source: "Indeed"
-        }));
-      });
-
-      jobs.push(...indeedJobs);
     }
   } catch (error) {
-    console.error("Scraping error:", error);
+    console.error("🚨 Scraping error:", error);
+    return NextResponse.json({ error: "Scraping error" }, { status: 500 });
   } finally {
     await browser.close();
   }
 
   // 🔹 Filter jobs to include only Fortune 500 companies
-  const filteredJobs = jobs.filter(job =>
+  const fortune500Jobs = jobs.filter(job => 
     FORTUNE_500_COMPANIES.some(company => job.company.toLowerCase().includes(company.toLowerCase()))
   );
 
-  return NextResponse.json(filteredJobs);
+  console.log(`✅ Total Fortune 500 Jobs Found: ${fortune500Jobs.length}`);
+
+  return NextResponse.json(fortune500Jobs);
 }

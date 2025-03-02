@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import playwright from "playwright";
+import playwright from "playwright-core"; // ✅ Use `playwright-core` for Vercel compatibility
+
 
 const FORTUNE_500_COMPANIES = [
   "Apple", "Microsoft", "Amazon", "Google", "Meta", "Tesla", "JP Morgan", "Walmart",
